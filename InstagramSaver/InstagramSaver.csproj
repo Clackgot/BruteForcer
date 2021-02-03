@@ -9,4 +9,10 @@
     <PackageReference Include="AngleSharp" Version="1.0.0-alpha-844" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="test.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
