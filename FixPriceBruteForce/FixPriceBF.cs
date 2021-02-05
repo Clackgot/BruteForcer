@@ -86,7 +86,7 @@ namespace FixPriceBruteForce
         /// Второй способ перебора(долгий), каждый раз новая сессия
         /// </summary>
         /// <returns></returns>
-        public async Task BruteFirst()
+        public void BruteFirst()
         {
             List<Task<IDocument>> documents = new List<Task<IDocument>>();//Задачи на загрузку результата попытки коннекта
             foreach (var password in Passwords)

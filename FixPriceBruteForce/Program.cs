@@ -16,15 +16,17 @@ namespace FixPriceBruteForce
     {
         static void Main(string[] args)
         {
-            var fixprice = new FixPriceBF("test.txt");
-            FirstVariant(fixprice);
+            //var fixprice = new FixPriceBF("test.txt");
+            //FirstVariant(fixprice);
+            var fixprice = new FixPriceBruter();
+            Console.WriteLine(fixprice.getNormalizePhoneNumber(79995396765));
         }
 
         private static void FirstVariant(FixPriceBF fixprice)
         {
             Stopwatch watch = new Stopwatch();//Подсчитываем времяя выполнения
             watch.Start();//Начали
-            fixprice.BruteFirst().Wait();
+            fixprice.BruteFirst();
             watch.Stop();//Закончили
             Console.WriteLine($"Проверено {fixprice.Passwords.Count} паролей за {watch.Elapsed}");
             Console.WriteLine($"Валидных: {fixprice.Founded}");
