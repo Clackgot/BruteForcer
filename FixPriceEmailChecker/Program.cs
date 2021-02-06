@@ -128,7 +128,7 @@ namespace FixPriceEmailChecker
         {
             static void Main(string[] args)
             {
-                Checker checker = new Checker("emails.txt");
+                Checker checker = new Checker(@"emails\100.txt");
                 var results = checker.Check();
                 foreach (var result in results)
                 {
