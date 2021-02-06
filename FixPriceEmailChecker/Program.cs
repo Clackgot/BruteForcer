@@ -1,6 +1,6 @@
 ﻿using AngleSharp;
-using AngleSharp.Dom;
 using AngleSharp.Io;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -10,74 +10,131 @@ using System.Threading.Tasks;
 
 namespace FixPriceEmailChecker
 {
-
-
-    enum mailConfirmResult
+    /// <summary>
+    /// Информация о почти
+    /// <list type="bullet">
+    /// <item>None - состояние почты неизвестно</item>
+    /// <item>Unregistered - почта ещё не зарегистрирована</item>
+    /// <item>Registered - почта зарегистрирована</item>
+    /// </list>
+    /// </summary>
+    public enum EmailInfo
     {
+        None,
         Unregistered,
         Registered,
     }
-    class Checker
+
+    class Email
     {
-        private IBrowsingContext context;
-        private List<string> emails = new List<string>();
-        public Checker(string emailDataPath)
+        public Email(string name, EmailInfo info)
         {
-            var config = Configuration.Default
-.WithDefaultCookies()
-.WithDefaultLoader();
-            context = BrowsingContext.New(config);
-            loadEmails(emailDataPath);
+            Info = info;
+            Name = name;
         }
 
-        private void loadEmails(string path)
+        public EmailInfo Info { get; private set; }
+        public string Name { get; private set; }
+
+        public override string ToString()
         {
-            StreamReader sr = new StreamReader(path);//Считыватель потока
-            string line;//Одна строка из файла
-            while (!sr.EndOfStream)//Пока не конец файла
+            switch (Info)
             {
-                line = sr.ReadLine();//Считать строку
-                emails.Add(line);//Добавить это строку в список паролей
+                case EmailInfo.None:
+                    return $"Ошибка при проверке {Name}";
+                case EmailInfo.Unregistered:
+                    return $"{Name} не зарегестирован";
+                case EmailInfo.Registered:
+                    return $"{Name} зарегестирован";
+                default:
+                    return null;
             }
-            sr.Close();//Закрыть поток
-            Console.WriteLine($"Загружено {emails.Count} паролей");
         }
 
-        public void Check()
+        class Checker
         {
-            List<Task<IDocument>> response = new List<Task<IDocument>>();
-            foreach (var email in emails)
+            private IBrowsingContext context;
+            private List<string> emails = new List<string>();
+            public Checker(string emailDataPath)
             {
-                response.Add(mailConfirm(email));
+                var config = Configuration.Default
+    .WithDefaultCookies()
+    .WithDefaultLoader();
+                context = BrowsingContext.New(config);
+                loadEmails(emailDataPath);
             }
-            Task.WaitAll(response.ToArray());
+
+            private void loadEmails(string path)
+            {
+                StreamReader sr = new StreamReader(path);//Считыватель потока
+                string line;//Одна строка из файла
+                while (!sr.EndOfStream)//Пока не конец файла
+                {
+                    line = sr.ReadLine();//Считать строку
+                    emails.Add(line);//Добавить это строку в список паролей
+                }
+                sr.Close();//Закрыть поток
+                Console.WriteLine($"Загружено {emails.Count} паролей");
+            }
+
+            public List<Email> Check()
+            {
+                List<Task<Email>> response = new List<Task<Email>>();
+                foreach (var email in emails)
+                {
+                    response.Add(mailConfirm(email));
+                }
+                Task.WaitAll(response.ToArray());
+                List<Email> mails = new List<Email>();
+                return response.ConvertAll(e => e.Result);
+
+            }
+
+            private async Task<Email> mailConfirm(string email)
+            {
+                var dictonary = new Dictionary<string, string>();
+                dictonary.Add(@"mail_confirm", "Y");
+                dictonary.Add(@"action", "getCode");
+                dictonary.Add(@"email", email);
+                var documentRequest = DocumentRequest.PostAsUrlencoded(new Url("https://fix-price.ru/ajax/confirm_mail.php"),
+                    dictonary);
+                var result = await context.OpenAsync(documentRequest);
+                JObject json = JObject.Parse(unicodeEncode(result.Source.Text));
+                return new Email(email, getEmailInfo(json));
+            }
+
+            private static EmailInfo getEmailInfo(JObject json)
+            {
+                string status = (string)json["status"];
+                switch (status)
+                {
+                    case "1":
+                        return EmailInfo.Unregistered;
+                    case "2":
+                        return EmailInfo.Registered;
+                    default:
+                        return EmailInfo.None;
+                }
+
+            }
+            private static string unicodeEncode(string text)
+            {
+                var rx = new Regex(@"\\u([0-9A-Z]{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                return rx.Replace(text, p => new string((char)int.Parse(p.Groups[1].Value, NumberStyles.HexNumber), 1));
+            }
         }
 
-        private async Task<IDocument> mailConfirm(string email)
+        class Program
         {
-            var dictonary = new Dictionary<string, string>();
-            dictonary.Add(@"mail_confirm", "Y");
-            dictonary.Add(@"action", "getCode");
-            dictonary.Add(@"email", email);
-            var documentRequest = DocumentRequest.PostAsUrlencoded(new Url("https://fix-price.ru/ajax/confirm_mail.php"),
-                dictonary);
-            var result = await context.OpenAsync(documentRequest);
-            Console.WriteLine(unicodeEncode(result.Source.Text));
-            return result;
-        }
-        private static string unicodeEncode(string text)
-        {
-            var rx = new Regex(@"\\u([0-9A-Z]{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            return rx.Replace(text, p => new string((char)int.Parse(p.Groups[1].Value, NumberStyles.HexNumber), 1));
-        }
-    }
-
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            Checker checker = new Checker("emails.txt");
-            checker.Check();
+            static void Main(string[] args)
+            {
+                Checker checker = new Checker("emails.txt");
+                var results = checker.Check();
+                foreach (var result in results)
+                {
+                    Console.WriteLine(result);
+                }
+            }
         }
     }
 }
