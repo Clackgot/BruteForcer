@@ -11,6 +11,12 @@ using System.Threading.Tasks;
 namespace FixPriceEmailChecker
 {
 
+
+    enum mailConfirmResult
+    {
+        Unregistered,
+        Registered,
+    }
     class Checker
     {
         private IBrowsingContext context;
@@ -37,7 +43,7 @@ namespace FixPriceEmailChecker
             Console.WriteLine($"Загружено {emails.Count} паролей");
         }
 
-        public void Check(List<string> emails)
+        public void Check()
         {
             List<Task<IDocument>> response = new List<Task<IDocument>>();
             foreach (var email in emails)
@@ -71,15 +77,7 @@ namespace FixPriceEmailChecker
         static void Main(string[] args)
         {
             Checker checker = new Checker("emails.txt");
-            List<string> emails = new List<string>()
-            {
-                "clackgot@gmail.com",
-                "sdfsdfsdf@gmail.com",
-                "sdssdf@gmail.com",
-                "f12312sdfsd@gmail.com",
-                "sdfsdf@gmail.com",
-            };
-            checker.Check(emails);
+            checker.Check();
         }
     }
 }
